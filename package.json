@@ -1,0 +1,22 @@
+{
+  "name": "JOSHI-BOT",
+  "version": "1.0.0",
+  "description": "Bot de WhatsApp usando Baileys",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "odebot": "node index.js"
+  },
+  "keywords": [
+    "whatsapp-bot",
+    "baileys"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.6.0",
+    "pino": "^8.15.0",
+    "axios": "^1.6.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
