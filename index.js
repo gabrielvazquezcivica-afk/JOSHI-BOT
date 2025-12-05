@@ -10,7 +10,16 @@ const {
 
 const pino = require("pino");
 const qrcode = require("qrcode-terminal");
+const handleMessage = require("./handler.js");
+const config = require("./config.js");
 
+console.log(config.owner[0]);
+console.log(config.mensajes.botNoAdmin);
+sock.ev.on("messages.upsert", async ({ messages }) => {
+    const msg = messages[0];
+    if (!msg.message) return;
+    handleMessage(sock, msg);
+});
 async function iniciarBot() {
     const { state, saveCreds } = await useMultiFileAuthState("./session");
 
