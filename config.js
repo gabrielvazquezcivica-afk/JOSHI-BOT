@@ -3,15 +3,15 @@
 // ─────────────────────────────────────────────
 
 // Número del dueño del bot (owner)
-global.owner = ["5210000000000"]; 
+global.owner = ["523310166470"]; 
 // Ejemplo México: 521234567890
 
 // Número oficial donde se conectará el bot
-global.botNumber = "5210000000000";
+global.botNumber = "18549995761";
 // Asegúrate que sea el MISMO número con el que escaneas el QR
 
 // Nombre del bot
-global.botName = "OdeBot";
+global.botName = "JOSHI-BOT";
 
 // APIs disponibles (puedes agregar más)
 global.APIs = {
