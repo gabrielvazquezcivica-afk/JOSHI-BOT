@@ -1,74 +1,59 @@
+const fs = require('fs');
+
 module.exports = {
-    command: "hidetag","n","notify","noty"
-    alias: ["ht", "oculto", "ghost"],
-    exec: async ({ sock, msg, from, isGroup, isAdmin, config, args }) => {
-        try {
+    name: "hidetag",
+    alias: ["ht"],
+    desc: "Enviar mensajes ocultos mencionando a todos",
+    category: "group",
+    async execute(m, { conn, text, args, participants, command }) {
 
-            if (!isGroup)
-                return sock.sendMessage(from, { text: config.mensajes.noGrupo });
+        if (!m.isGroup) return m.reply("Este comando solo funciona en grupos.");
+        if (!text && !m.quoted) return m.reply(`Usa:\n.hidetag texto\n.hidetag (responde imagen/audio/video/etc)`);
 
-            if (!isAdmin)
-                return sock.sendMessage(from, { text: config.mensajes.noAdmin });
+        // Obtener menciones
+        let users = participants.map(u => u.id);
 
-            const texto = args.length > 0 ? args.join(" ") : "";
+        // Si el mensaje es texto
+        if (text && !m.quoted) {
+            return conn.sendMessage(m.chat, {
+                text: `${text}\n\n> JOSHI-BOT`,
+                mentions: users
+            }, { quoted: m });
+        }
 
-            // Obtener participantes
-            const metadata = await sock.groupMetadata(from);
-            const participantes = metadata.participants;
-            const menciones = participantes.map(p => p.id);
+        // Si el usuario respondió a un archivo (imagen, sticker, audio, video, etc)
+        if (m.quoted) {
 
-            // Detectar si el mensaje tiene multimedia
-            const hasMedia =
-                msg.message.imageMessage ||
-                msg.message.videoMessage ||
-                msg.message.audioMessage ||
-                msg.message.stickerMessage;
+            let mime = m.quoted.mtype;
 
-            // 1️⃣ HIDETAG SOLO TEXTO
-            if (!hasMedia) {
-                return sock.sendMessage(from, {
-                    text: texto,
-                    mentions: menciones
-                });
+            // Descargar contenido
+            let media = await m.quoted.download();
+            let options = { 
+                mentions: users,
+                caption: `${text ? text : ''}\n\n> JOSHI-BOT`
+            };
+
+            if (/image/.test(mime)) {
+                return conn.sendMessage(m.chat, { image: media, ...options }, { quoted: m });
             }
 
-            // 2️⃣ HIDETAG CON MULTIMEDIA
-            const buffer = await sock.downloadMediaMessage(msg);
-
-            if (msg.message.imageMessage) {
-                return sock.sendMessage(from, {
-                    image: buffer,
-                    caption: texto,
-                    mentions: menciones
-                });
+            if (/video/.test(mime)) {
+                return conn.sendMessage(m.chat, { video: media, ...options }, { quoted: m });
             }
 
-            if (msg.message.videoMessage) {
-                return sock.sendMessage(from, {
-                    video: buffer,
-                    caption: texto,
-                    mentions: menciones
-                });
+            if (/audio/.test(mime)) {
+                return conn.sendMessage(m.chat, { audio: media, mimetype: 'audio/mpeg', ...options }, { quoted: m });
             }
 
-            if (msg.message.audioMessage) {
-                return sock.sendMessage(from, {
-                    audio: buffer,
-                    mimetype: "audio/mp4",
-                    ptt: false,
-                    mentions: menciones
-                });
+            if (/sticker/.test(mime)) {
+                return conn.sendMessage(m.chat, { sticker: media, ...options }, { quoted: m });
             }
 
-            if (msg.message.stickerMessage) {
-                return sock.sendMessage(from, {
-                    sticker: buffer,
-                    mentions: menciones
-                });
+            if (/document/.test(mime)) {
+                return conn.sendMessage(m.chat, { document: media, ...options }, { quoted: m });
             }
 
-        } catch (e) {
-            console.log("Error en hidetag:", e);
+            return m.reply("El tipo de archivo no es compatible.");
         }
     }
 };
