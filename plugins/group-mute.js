@@ -8,7 +8,8 @@ export async function handleMute(conn, message) {
     const command = body.trim().toLowerCase();
 
     // Solo admin puede usarlo
-    const isAdmin = (await conn.groupMetadata(from)).participants
+    const groupMetadata = await conn.groupMetadata(from);
+    const isAdmin = groupMetadata.participants
         .find(p => p.id === sender)?.admin;
     if (!isAdmin) return;
 
@@ -42,3 +43,9 @@ export async function checkMuted(conn, message) {
         await conn.sendMessage(from, { delete: key });
     }
 }
+
+// Para integrar con el sistema de ayuda de comandos
+export const handler = {};
+handler.help = ['mute', 'unmute'];
+handler.tags = ['group'];
+handler.command = /^\.?(mute|unmute)$/i;
