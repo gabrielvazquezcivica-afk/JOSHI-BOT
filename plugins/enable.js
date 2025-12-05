@@ -1,57 +1,44 @@
-const fs = require("fs");
-const dbFile = "./database/config-grupos.json";
+// enable-disable.js
+// Comandos: .enable <comando> | .disable <comando>
+const activeCommands = {}; // { groupId: [comando1, comando2] }
 
-// Crear archivo si no existe
-if (!fs.existsSync(dbFile)) {
-    fs.writeFileSync(dbFile, JSON.stringify({}));
-}
+export async function toggleCommand(conn, message) {
+    const { from, sender, body } = message;
+    const args = body.trim().split(/\s+/);
+    const command = args[0].toLowerCase();
+    const targetCommand = args[1];
 
-function cargarDB() {
-    return JSON.parse(fs.readFileSync(dbFile));
-}
-
-function guardarDB(data) {
-    fs.writeFileSync(dbFile, JSON.stringify(data, null, 2));
-}
-
-module.exports = {
-    command: "enable",
-    alias: ["on", "off", "activar", "desactivar", "config"],
-    exec: async ({ sock, msg, from, isGroup, isAdmin, isOwner, config, args }) => {
-        try {
-            if (!isGroup)
-                return sock.sendMessage(from, { text: config.mensajes.noGrupo });
-
-            if (!isAdmin && !isOwner)
-                return sock.sendMessage(from, { text: config.mensajes.noAdmin });
-
-            if (args.length < 2)
-                return sock.sendMessage(from, { 
-                    text: `❗ *Uso correcto:*\n.enable <función> <on/off>\n\nEjemplo:\n.enable antilink on`
-                });
-
-            const opcion = args[0].toLowerCase();
-            const estado = args[1].toLowerCase();
-
-            const validos = ["on", "off"];
-            if (!validos.includes(estado)) {
-                return sock.sendMessage(from, { text: "❗ Usa: on / off" });
-            }
-
-            // Cargar base de datos
-            const db = cargarDB();
-            if (!db[from]) db[from] = {};
-
-            // Guardar el cambio
-            db[from][opcion] = estado === "on";
-            guardarDB(db);
-
-            await sock.sendMessage(from, {
-                text: `⚙️ *Configuración actualizada*\n\n🔧 Función: *${opcion}*\n📌 Estado: *${estado.toUpperCase()}*`
-            });
-
-        } catch (e) {
-            console.log("Error en enable.js:", e);
-        }
+    if (!targetCommand) {
+        await conn.sendMessage(from, { text: 'Debes indicar el comando a activar/desactivar.' });
+        return;
     }
-};
+
+    // Solo admins pueden usar
+    const groupMetadata = await conn.groupMetadata(from);
+    const isAdmin = groupMetadata.participants.find(p => p.id === sender)?.admin;
+    if (!isAdmin) return;
+
+    if (!activeCommands[from]) activeCommands[from] = [];
+
+    if (command === '.enable') {
+        if (!activeCommands[from].includes(targetCommand)) {
+            activeCommands[from].push(targetCommand);
+        }
+        await conn.sendMessage(from, { text: `✅ Comando ${targetCommand} activado en este grupo.` });
+    } else if (command === '.disable') {
+        activeCommands[from] = activeCommands[from].filter(c => c !== targetCommand);
+        await conn.sendMessage(from, { text: `❌ Comando ${targetCommand} desactivado en este grupo.` });
+    }
+}
+
+// Función para comprobar si un comando está habilitado
+export function isCommandEnabled(groupId, command) {
+    if (!activeCommands[groupId]) return true; // por defecto habilitado
+    return activeCommands[groupId].includes(command);
+}
+
+// Integración con sistema de ayuda
+export const handler = {};
+handler.help = ['enable', 'disable'];
+handler.tags = ['group'];
+handler.command = /^\.?(enable|disable)$/i;
