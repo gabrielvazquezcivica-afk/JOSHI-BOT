@@ -1,65 +1,48 @@
-const fs = require("fs");
+import fetch from 'node-fetch'; // Si usas Node 18+, fetch ya viene incluido
+import path from 'path';
 
-module.exports = {
-    command: "tagall","todos"
-    alias: ["todos", "invocar", "call"],
-    exec: async ({ sock, msg, from, isGroup, isAdmin, config, args }) => {
-        try {
+// Lista de emojis (igual que antes)
+const emojis = ['😂','🤣','😍','🥰','😎','😜','🤪','🤩','😏','😇','🥳','🤯','😱','😅','😆','😋','😛','😝','😤','😢','😭','😡','🤬','💀','👻','👽','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀'];
 
-            if (!isGroup) 
-                return sock.sendMessage(from, { text: config.mensajes.noGrupo });
+function shuffle(array) {
+    return array.sort(() => Math.random() - 0.5);
+}
 
-            if (!isAdmin) 
-                return sock.sendMessage(from, { text: config.mensajes.noAdmin });
+export async function tagAll(conn, message) {
+    const { from, sender } = message;
 
-            // ============================
-            //   EMOJI PERSONALIZABLE
-            // ============================
-            const emoji = config.emojis?.tagall || "🎧", "🐲", "🐬", "🪐", "⚡", "👾"; 
-            // Puedes cambiarlo en config.js así:
-            // emojis: { tagall: "⚡" }
-            // ============================
+    const groupMetadata = await conn.groupMetadata(from);
+    const participants = groupMetadata.participants.map(p => p.id);
 
-            // Texto opcional
-            const texto = args.length > 0 ? args.join(" ") : "📢 *Mención general:*";
+    const isAdmin = groupMetadata.participants.find(p => p.id === sender)?.admin;
+    if (!isAdmin) return;
 
-            // Info del grupo
-            const metadata = await sock.groupMetadata(from);
-            const participantes = metadata.participants;
+    const shuffledEmojis = shuffle([...emojis]);
+    const mentionsText = participants.map((p, i) => {
+        const emoji = shuffledEmojis[i % shuffledEmojis.length];
+        return `${emoji} @${p.split('@')[0]}`;
+    }).join(' ');
 
-            let mensaje = `📣 *TAG ALL*\n${texto}\n\n`;
-            const menciones = [];
+    // URL de tu audio
+    const audioURL = 'https://youtu.be/jKgxKoUtHPs?si=jgRJ4gQUBAhK0o8u'; // <--- Aquí pones tu link HTTPS
 
-            // MENCIONAR A TODOS CON EMOJI
-            for (let p of participantes) {
-                const id = p.id;
-                menciones.push(id);
+    // Descargar audio desde la URL
+    const res = await fetch(audioURL);
+    if (!res.ok) return;
+    const audioBuffer = await res.arrayBuffer();
 
-                mensaje += `${emoji} @${id.split("@")[0]}\n`;
-            }
+    // Enviar mensaje con audio y menciones
+    await conn.sendMessage(from, {
+        audio: Buffer.from(audioBuffer),
+        mimetype: 'audio/mpeg',
+        ptt: true,
+        caption: mentionsText,
+        mentions: participants
+    });
+}
 
-            // Enviar el mensaje
-            await sock.sendMessage(from, {
-                text: mensaje,
-                mentions: menciones
-            });
-
-            // ============================
-            //     ENVIAR AUDIO
-            // ============================
-            const audioPath = "./media/tagall.mp3";
-
-            if (fs.existsSync(audioPath)) {
-                await sock.sendMessage(from, {
-                    audio: { url: "https://youtu.be/jKgxKoUtHPs?si=jZd-fgCWeYu9hSkh" },
-                    mimetype: "audio/mp4"
-                });
-            } else {
-                console.log("⚠️ No se encontró ./media/tagall.mp3");
-            }
-
-        } catch (e) {
-            console.log("Error en tagall:", e);
-        }
-    }
-};
+// Integración con sistema de ayuda
+export const handler = {};
+handler.help = ['todos'];
+handler.tags = ['group'];
+handler.command = /^\.?(todos)$/i;
