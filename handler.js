@@ -1,68 +1,64 @@
-// ─────────────────────────────────────────────
-// handler.js — Sistema de comandos con plugins
-// ─────────────────────────────────────────────
+import config from './config.js'
+import fs from 'fs'
+import path from 'path'
 
-const config = require("./config.js");
-const cargarPlugins = require("./pluginsLoader.js");
-
-// Cargar todos los plugins
-let plugins = cargarPlugins();
-
-module.exports = async function handleMessage(sock, msg) {
+export default async function handler(conn, m) {
     try {
-        const from = msg.key.remoteJid;
-        const isGroup = from.endsWith("@g.us");
+        // Verifica que el mensaje exista
+        if (!m || !m.message) return;
 
-        const texto =
-            msg.message?.conversation ||
-            msg.message?.extendedTextMessage?.text ||
-            "";
+        const from = m.key.remoteJid;
+        const isGroup = from.endsWith('@g.us');
+        const sender = m.key.participant || m.key.remoteJid;
+        
+        // Texto del mensaje
+        const type = Object.keys(m.message)[0];
+        const body = 
+            type === 'conversation' ? m.message.conversation :
+            type === 'extendedTextMessage' ? m.message.extendedTextMessage.text :
+            type === 'imageMessage' ? (m.message.imageMessage.caption || '') :
+            type === 'videoMessage' ? (m.message.videoMessage.caption || '') :
+            '';
 
-        if (!texto) return;
+        // Detectar prefijo
+        const prefix = config.PREFIX;
+        const isCmd = body.startsWith(prefix);
+        const command = isCmd ? body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase() : '';
+        const args = isCmd ? body.trim().split(/ +/).slice(1) : [];
 
-        const prefix = ".";
-        if (!texto.startsWith(prefix)) return;
+        // Cargar plugins (.js) dinámicamente
+        const pluginFolder = './plugins';
+        const plugins = fs.readdirSync(pluginFolder).filter(f => f.endsWith('.js'));
 
-        const args = texto.slice(prefix.length).trim().split(/ +/);
-        const command = args.shift().toLowerCase();
+        for (let file of plugins) {
+            try {
+                const pluginPath = path.resolve(pluginFolder, file);
+                const plugin = (await import('file://' + pluginPath)).default;
 
-        const sender = msg.key.participant || msg.key.remoteJid;
-        const senderNumber = sender.split("@")[0];
-        const isOwner = config.owner.includes(senderNumber);
+                // Si el plugin está hecho para eventos (ej. antilink)
+                if (plugin && plugin.event && typeof plugin.event === 'function') {
+                    await plugin.event({ conn, m, body, isGroup, sender, config });
+                }
 
-        let groupMetadata, admins = [], isAdmin = false, isBotAdmin = false;
+                // Si es comando
+                if (isCmd && plugin && plugin.command) {
+                    if (plugin.command.includes(command)) {
+                        
+                        // Verificar si solo owner puede usarlo
+                        if (plugin.owner && !config.OWNER_NUMBERS.includes(sender.split('@')[0])) {
+                            return conn.sendMessage(from, { text: config.MSG.notOwner }, { quoted: m });
+                        }
 
-        if (isGroup) {
-            groupMetadata = await sock.groupMetadata(from);
-            admins = groupMetadata.participants
-                .filter(p => p.admin)
-                .map(p => p.id);
-
-            isAdmin = admins.includes(sender);
-            isBotAdmin = admins.includes(sock.user.id.split(":")[0] + "@s.whatsapp.net");
+                        // Ejecutar plugin
+                        await plugin.run({ conn, m, args, from, isGroup, sender, command, config });
+                    }
+                }
+            } catch (err) {
+                console.log("Error en plugin:", err);
+            }
         }
-
-        // Si el comando existe en plugins
-        if (plugins[command]) {
-            return plugins[command].exec({
-                sock,
-                msg,
-                from,
-                args,
-                sender,
-                senderNumber,
-                isOwner,
-                isGroup,
-                isAdmin,
-                isBotAdmin,
-                config
-            });
-        }
-
-        // Si no existe
-        await sock.sendMessage(from, { text: "❓ Comando no reconocido." });
 
     } catch (e) {
-        console.log("❌ Error en handler:", e);
+        console.log("Error Handler:", e);
     }
-};
+}
