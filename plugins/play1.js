@@ -4,7 +4,7 @@ import ytdl from "@distube/ytdl-core";
 import { isCommandEnabled } from "./enable.js";
 
 // ---------------- TU API KEY ----------------
-const YT_API = "AQUI_TU_API_KEY"; // <--- REEMPLAZA ESTO
+const YT_API = "AIzaSyBDC1a2MaAyr2DE2qDnN9IVInwkWFZB348"; // <--- REEMPLAZA ESTO
 // --------------------------------------------
 
 export const playHandler = async (conn, m) => {
