@@ -1,15 +1,18 @@
 // ─────────────────────────────────────────────
-// handler.js — Motor principal de comandos
+// handler.js — Sistema de comandos con plugins
 // ─────────────────────────────────────────────
 
 const config = require("./config.js");
+const cargarPlugins = require("./pluginsLoader.js");
+
+// Cargar todos los plugins
+let plugins = cargarPlugins();
 
 module.exports = async function handleMessage(sock, msg) {
     try {
         const from = msg.key.remoteJid;
         const isGroup = from.endsWith("@g.us");
 
-        // Detectar texto
         const texto =
             msg.message?.conversation ||
             msg.message?.extendedTextMessage?.text ||
@@ -17,82 +20,49 @@ module.exports = async function handleMessage(sock, msg) {
 
         if (!texto) return;
 
-        // Prefijo
         const prefix = ".";
         if (!texto.startsWith(prefix)) return;
 
-        // Separar comando y argumentos
         const args = texto.slice(prefix.length).trim().split(/ +/);
         const command = args.shift().toLowerCase();
 
-        // Información útil
         const sender = msg.key.participant || msg.key.remoteJid;
         const senderNumber = sender.split("@")[0];
-
         const isOwner = config.owner.includes(senderNumber);
 
-        let groupMetadata, groupAdmins = [], isAdmin = false, isBotAdmin = false;
+        let groupMetadata, admins = [], isAdmin = false, isBotAdmin = false;
 
         if (isGroup) {
             groupMetadata = await sock.groupMetadata(from);
-            groupAdmins = groupMetadata.participants
+            admins = groupMetadata.participants
                 .filter(p => p.admin)
                 .map(p => p.id);
 
-            isAdmin = groupAdmins.includes(sender);
-            isBotAdmin = groupAdmins.includes(sock.user.id.split(":")[0] + "@s.whatsapp.net");
+            isAdmin = admins.includes(sender);
+            isBotAdmin = admins.includes(sock.user.id.split(":")[0] + "@s.whatsapp.net");
         }
 
-        // ───────────────────────────────────────
-        //            COMANDOS AQUÍ
-        // ───────────────────────────────────────
-
-        switch (command) {
-
-            // Ejemplo simple: .ping
-            case "ping":
-                await sock.sendMessage(from, { text: "Pong 🏓" });
-                break;
-
-            // Solo owner
-            case "owner":
-                if (!isOwner) {
-                    return sock.sendMessage(from, { text: config.mensajes.soloOwner });
-                }
-                await sock.sendMessage(from, { text: "Eres el owner ✔️" });
-                break;
-
-            // Comando que requiere admin del grupo
-            case "admin":
-                if (!isGroup)
-                    return sock.sendMessage(from, { text: config.mensajes.soloGrupos });
-
-                if (!isAdmin)
-                    return sock.sendMessage(from, { text: config.mensajes.userNoAdmin });
-
-                await sock.sendMessage(from, { text: "Eres admin del grupo ✔️" });
-                break;
-
-            // Comando que requiere que el bot sea admin
-            case "botadmin":
-                if (!isGroup)
-                    return sock.sendMessage(from, { text: config.mensajes.soloGrupos });
-
-                if (!isBotAdmin)
-                    return sock.sendMessage(from, { text: config.mensajes.botNoAdmin });
-
-                await sock.sendMessage(from, { text: "El bot es admin ✔️" });
-                break;
-
-            default:
-                await sock.sendMessage(from, { text: "❓ Comando no reconocido." });
-                break;
+        // Si el comando existe en plugins
+        if (plugins[command]) {
+            return plugins[command].exec({
+                sock,
+                msg,
+                from,
+                args,
+                sender,
+                senderNumber,
+                isOwner,
+                isGroup,
+                isAdmin,
+                isBotAdmin,
+                config
+            });
         }
+
+        // Si no existe
+        await sock.sendMessage(from, { text: "❓ Comando no reconocido." });
 
     } catch (e) {
         console.log("❌ Error en handler:", e);
-        try {
-            await sock.sendMessage(msg.key.remoteJid, { text: config.mensajes.error });
-        } catch {}
     }
 };
