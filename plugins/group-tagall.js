@@ -1,7 +1,7 @@
 const fs = require("fs");
 
 module.exports = {
-    command: "tagall",
+    command: "tagall","todos"
     alias: ["todos", "invocar", "call"],
     exec: async ({ sock, msg, from, isGroup, isAdmin, config, args }) => {
         try {
