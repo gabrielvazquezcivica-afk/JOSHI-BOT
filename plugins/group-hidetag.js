@@ -1,78 +1,98 @@
-const handler = async (m, { conn, participants, text, command }) => {
+const handler = async (m, { conn, text, participants }) => {
 try {
-    // Reacción al comando
+
     await conn.sendMessage(m.chat, { react: { text: "👀", key: m.key } });
 
-    // Validar admin
-    const groupMetadata = await conn.groupMetadata(m.chat);
-    const senderAdmin = groupMetadata.participants.find(p => p.id === m.sender)?.admin;
+    if (!m.isGroup) return m.reply("⚠️ *Solo funciona en grupos.*");
+
+    const metadata = await conn.groupMetadata(m.chat);
+    const senderAdmin = metadata.participants.find(p => p.id === m.sender)?.admin;
     if (!senderAdmin) return m.reply("⚠️ *Solo los admins pueden usar este comando.*");
 
-    // Crear lista de menciones
-    let users = participants.map(v => v.id);
+    const users = participants.map(u => u.id);
 
-    // Si es texto
-    if (text) {
-        await conn.sendMessage(m.chat, { 
-            text: text,
-            mentions: users
-        });
-        return;
-    }
+    // Si no escribió texto y no respondió nada
+    if (!text && !m.quoted) 
+        return m.reply("⚠️ *Debes escribir un mensaje o responder uno.*");
 
-    // Si es multimedia (imagen, video, audio, sticker)
-    if (m.quoted) {
-        let q = m.quoted;
+    // Revisar si viene multimedia
+    let quoted = m.quoted ? m.quoted : m;
+    let mime = (quoted.msg || quoted).mimetype || "";
 
-        let type = q.mtype;
+    // Si contiene multimedia
+    if (/image|video|sticker|audio/.test(mime)) {
 
-        if (type === "imageMessage") {
-            return conn.sendMessage(m.chat, {
-                image: await q.download(),
-                caption: q.text || "",
+        let buffer = await quoted.download();
+
+        if (/image/.test(mime)) {
+            return await conn.sendMessage(m.chat, {
+                image: buffer,
+                caption: text || "",
                 mentions: users
             });
         }
 
-        if (type === "videoMessage") {
-            return conn.sendMessage(m.chat, {
-                video: await q.download(),
-                caption: q.text || "",
+        if (/video/.test(mime)) {
+            return await conn.sendMessage(m.chat, {
+                video: buffer,
+                caption: text || "",
                 mentions: users
             });
         }
 
-        if (type === "audioMessage") {
-            return conn.sendMessage(m.chat, {
-                audio: await q.download(),
+        if (/sticker/.test(mime)) {
+            // Enviar sticker
+            await conn.sendMessage(m.chat, {
+                sticker: buffer,
+                mentions: users
+            });
+
+            // Enviar texto si lo hay
+            if (text) {
+                await conn.sendMessage(m.chat, {
+                    text: text,
+                    mentions: users
+                });
+            }
+            return;
+        }
+
+        if (/audio/.test(mime)) {
+            // Enviar audio
+            await conn.sendMessage(m.chat, {
+                audio: buffer,
                 ptt: true,
                 mentions: users
             });
+
+            // Enviar texto si lo hay
+            if (text) {
+                await conn.sendMessage(m.chat, {
+                    text: text,
+                    mentions: users
+                });
+            }
+            return;
         }
 
-        if (type === "stickerMessage") {
-            return conn.sendMessage(m.chat, {
-                sticker: await q.download(),
-                mentions: users
-            });
-        }
-
-        return m.reply("⚠️ *No reconozco este tipo de mensaje para oculto.*");
+    } else {
+        // Solo texto
+        return await conn.sendMessage(m.chat, {
+            text: text,
+            mentions: users
+        });
     }
 
-    // Si no enviaron texto ni respondieron a nada
-    return m.reply(`⚠️ *Debes escribir un mensaje o responder a uno.*\n\nEjemplo:\n.hidetag Hola a todos`);
-
 } catch (e) {
-    console.log(e)
+    console.log(e);
     await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-    return m.reply("❌ *Error al ejecutar hidetag.*");
+    m.reply("❌ *Error en hidetag.*");
 }
 };
 
-handler.help = ["hidetag", "n"];
+handler.help = ["n","hidetag","tag"];
 handler.tags = ["group"];
-handler.command = ["hidetag", "ht", "tagoculto"];
+handler.command = ["n","hidetag","tag"];
 handler.group = true;
 handler.admin = true;
 
