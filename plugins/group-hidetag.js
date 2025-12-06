@@ -11,77 +11,80 @@ try {
 
     const users = participants.map(u => u.id);
 
-    // Si no escribió texto y no respondió nada
+    // Si no mandan texto y no responden nada
     if (!text && !m.quoted) 
-        return m.reply("⚠️ *Debes escribir un mensaje o responder uno.*");
+        return m.reply("⚠️ *Debes escribir algo o responder un mensaje.*");
 
-    // Revisar si viene multimedia
+    // Texto + firma del bot
+    const botName = "JOSHI-BOT"; // <-- cámbialo si quieres
+    const finalText = `${text || ""}\n\n> ${botName}`;
+
+    // Detectar si viene multimedia
     let quoted = m.quoted ? m.quoted : m;
     let mime = (quoted.msg || quoted).mimetype || "";
 
-    // Si contiene multimedia
+    // MULTIMEDIA
     if (/image|video|sticker|audio/.test(mime)) {
 
         let buffer = await quoted.download();
 
+        // IMAGEN
         if (/image/.test(mime)) {
             return await conn.sendMessage(m.chat, {
                 image: buffer,
-                caption: text || "",
+                caption: finalText,
                 mentions: users
             });
         }
 
+        // VIDEO
         if (/video/.test(mime)) {
             return await conn.sendMessage(m.chat, {
                 video: buffer,
-                caption: text || "",
+                caption: finalText,
                 mentions: users
             });
         }
 
+        // STICKER
         if (/sticker/.test(mime)) {
+
             // Enviar sticker
             await conn.sendMessage(m.chat, {
                 sticker: buffer,
                 mentions: users
             });
 
-            // Enviar texto si lo hay
-            if (text) {
-                await conn.sendMessage(m.chat, {
-                    text: text,
-                    mentions: users
-                });
-            }
-            return;
+            // Enviar texto con firma
+            return await conn.sendMessage(m.chat, {
+                text: finalText,
+                mentions: users
+            });
         }
 
+        // AUDIO
         if (/audio/.test(mime)) {
-            // Enviar audio
+
             await conn.sendMessage(m.chat, {
                 audio: buffer,
                 ptt: true,
                 mentions: users
             });
 
-            // Enviar texto si lo hay
-            if (text) {
-                await conn.sendMessage(m.chat, {
-                    text: text,
-                    mentions: users
-                });
-            }
-            return;
+            // Enviar texto con firma
+            return await conn.sendMessage(m.chat, {
+                text: finalText,
+                mentions: users
+            });
         }
 
-    } else {
-        // Solo texto
-        return await conn.sendMessage(m.chat, {
-            text: text,
-            mentions: users
-        });
     }
+
+    // SOLO TEXTO
+    return await conn.sendMessage(m.chat, {
+        text: finalText,
+        mentions: users
+    });
 
 } catch (e) {
     console.log(e);
@@ -90,9 +93,9 @@ try {
 }
 };
 
-handler.help = ["n","hidetag","tag"];
+handler.help = ["n"];
 handler.tags = ["group"];
-handler.command = ["n","hidetag","tag"];
+handler.command = ["n"];
 handler.group = true;
 handler.admin = true;
 
