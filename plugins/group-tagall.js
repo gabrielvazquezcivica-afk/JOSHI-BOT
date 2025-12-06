@@ -1,48 +1,74 @@
-import fetch from 'node-fetch'; // Si usas Node 18+, fetch ya viene incluido
-import path from 'path';
+import fetch from "node-fetch";
 
-// Lista de emojis (igual que antes)
-const emojis = ['😂','🤣','😍','🥰','😎','😜','🤪','🤩','😏','😇','🥳','🤯','😱','😅','😆','😋','😛','😝','😤','😢','😭','😡','🤬','💀','👻','👽','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀'];
+const handler = async (m, { conn, participants }) => {
+try {
 
-function shuffle(array) {
-    return array.sort(() => Math.random() - 0.5);
-}
+    // Reacción inicial
+    await conn.sendMessage(m.chat, { react: { text: "📢", key: m.key } });
 
-export async function tagAll(conn, message) {
-    const { from, sender } = message;
+    if (!m.isGroup) return m.reply("⚠️ *Este comando solo funciona en grupos.*");
 
-    const groupMetadata = await conn.groupMetadata(from);
-    const participants = groupMetadata.participants.map(p => p.id);
+    const groupMetadata = await conn.groupMetadata(m.chat);
+    const groupName = groupMetadata.subject;
+    const totalMembers = participants.length;
 
-    const isAdmin = groupMetadata.participants.find(p => p.id === sender)?.admin;
-    if (!isAdmin) return;
+    const senderAdmin = groupMetadata.participants.find(p => p.id === m.sender)?.admin;
+    if (!senderAdmin) return m.reply("⚠️ *Solo los admins pueden usar este comando.*");
 
-    const shuffledEmojis = shuffle([...emojis]);
-    const mentionsText = participants.map((p, i) => {
-        const emoji = shuffledEmojis[i % shuffledEmojis.length];
-        return `${emoji} @${p.split('@')[0]}`;
-    }).join(' ');
+    // Imagen del grupo
+    let groupImg;
+    try {
+        groupImg = await conn.profilePictureUrl(m.chat, "image");
+    } catch {
+        groupImg = "https://i.imgur.com/6f0pF0P.jpeg";
+    }
 
-    // URL de tu audio
-    const audioURL = 'https://youtu.be/jKgxKoUtHPs?si=jgRJ4gQUBAhK0o8u'; // <--- Aquí pones tu link HTTPS
+    // Lista de menciones
+    const users = participants.map(u => u.id);
 
-    // Descargar audio desde la URL
-    const res = await fetch(audioURL);
-    if (!res.ok) return;
-    const audioBuffer = await res.arrayBuffer();
+    // +30 emojis
+    const emojis = [
+        "🔥","⚡","⭐","🌙","🌟","💥","✨","💫","🌈","🍀","🍃","🌸","🌺",
+        "🌼","🌻","🌹","💐","🪷","🐰","🐶","🐱","🦊","🐼","🐵","🦁","🐯",
+        "🐸","🐢","🐙","🦋","🐝","🐳","🐬","🦄","🐞","🌪","⛄","🎃","🎉"
+    ];
 
-    // Enviar mensaje con audio y menciones
-    await conn.sendMessage(from, {
-        audio: Buffer.from(audioBuffer),
-        mimetype: 'audio/mpeg',
-        ptt: true,
-        caption: mentionsText,
-        mentions: participants
+    // Mensaje armado
+    let finalMsg = `📢 *MENCIÓN GLOBAL: ${groupName}*\n👥 *Miembros: ${totalMembers}*\n\n`;
+
+    for (let user of users) {
+        const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+        finalMsg += `${emoji} @${user.split("@")[0]}\n`;
+    }
+
+    // Enviar imagen del grupo con menciones
+    await conn.sendMessage(m.chat, {
+        image: { url: groupImg },
+        caption: finalMsg,
+        mentions: users
     });
-}
 
-// Integración con sistema de ayuda
-export const handler = {};
-handler.help = ['todos'];
-handler.tags = ['group'];
-handler.command = /^\.?(todos)$/i;
+    // Enviar audio
+    const audioURL = "https://youtu.be/jKgxKoUtHPs?si=eUfUH-TLM96vNPs2"; // <-- CAMBIA ESTO
+    await conn.sendMessage(m.chat, {
+        audio: { url: audioURL },
+        mimetype: "audio/mpeg",
+        ptt: true
+    });
+
+    await conn.sendMessage(m.chat, { react: { text: "⚡", key: m.key } });
+
+} catch (e) {
+    console.error(e);
+    await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+    m.reply("❌ *Error al ejecutar tagall.*");
+}
+};
+
+handler.help = ["tagall", "todos", "all"];
+handler.tags = ["group"];
+handler.command = ["tagall", "todos", "all"];
+handler.group = true;
+handler.admin = true;
+
+export default handler;
