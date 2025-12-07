@@ -1,64 +1,93 @@
-import config from './config.js'
-import fs from 'fs'
-import path from 'path'
+import fs from "fs";
+import path from "path";
+import config from "./config.js";
 
-export default async function handler(conn, m) {
+const commands = new Map();
+const dir = "./plugins";
+
+// === CARGAR ARCHIVOS DE /plugins ===
+for (let file of fs.readdirSync(dir)) {
+    if (file.endsWith(".js")) {
+        let plugin = await import(path.resolve(`${dir}/${file}`));
+        if (!plugin.default) continue;
+
+        let cmd = plugin.default;
+
+        if (cmd.commands) {
+            for (let x of cmd.commands) {
+                commands.set(x, cmd);
+            }
+        }
+    }
+}
+
+// === HANDLER PRINCIPAL ===
+export default async function handler(sock, msg) {
     try {
-        // Verifica que el mensaje exista
-        if (!m || !m.message) return;
+        const from = msg.key.remoteJid;
+        const type = Object.keys(msg.message || {})[0];
+        const body =
+            type === "conversation"
+                ? msg.message.conversation
+                : type === "extendedTextMessage"
+                ? msg.message.extendedTextMessage.text
+                : "";
 
-        const from = m.key.remoteJid;
-        const isGroup = from.endsWith('@g.us');
-        const sender = m.key.participant || m.key.remoteJid;
-        
-        // Texto del mensaje
-        const type = Object.keys(m.message)[0];
-        const body = 
-            type === 'conversation' ? m.message.conversation :
-            type === 'extendedTextMessage' ? m.message.extendedTextMessage.text :
-            type === 'imageMessage' ? (m.message.imageMessage.caption || '') :
-            type === 'videoMessage' ? (m.message.videoMessage.caption || '') :
-            '';
+        if (!body) return;
 
-        // Detectar prefijo
-        const prefix = config.PREFIX;
-        const isCmd = body.startsWith(prefix);
-        const command = isCmd ? body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase() : '';
-        const args = isCmd ? body.trim().split(/ +/).slice(1) : [];
+        const prefix = config.prefix;
 
-        // Cargar plugins (.js) dinámicamente
-        const pluginFolder = './plugins';
-        const plugins = fs.readdirSync(pluginFolder).filter(f => f.endsWith('.js'));
+        if (!body.startsWith(prefix)) return;
 
-        for (let file of plugins) {
-            try {
-                const pluginPath = path.resolve(pluginFolder, file);
-                const plugin = (await import('file://' + pluginPath)).default;
+        const args = body.slice(prefix.length).trim().split(/ +/);
+        const command = args.shift().toLowerCase();
 
-                // Si el plugin está hecho para eventos (ej. antilink)
-                if (plugin && plugin.event && typeof plugin.event === 'function') {
-                    await plugin.event({ conn, m, body, isGroup, sender, config });
-                }
+        const sender = msg.key.participant || msg.key.remoteJid;
+        const isGroup = from.endsWith("@g.us");
+        const metadata = isGroup ? await sock.groupMetadata(from) : {};
+        const admins = isGroup ? metadata.participants.filter(v => v.admin).map(v => v.id) : [];
+        const isAdmin = admins.includes(sender);
+        const isOwner = sender.includes(config.owner);
+        const isBotAdmin = admins.includes(sock.user.id.split(":")[0] + "@s.whatsapp.net");
 
-                // Si es comando
-                if (isCmd && plugin && plugin.command) {
-                    if (plugin.command.includes(command)) {
-                        
-                        // Verificar si solo owner puede usarlo
-                        if (plugin.owner && !config.OWNER_NUMBERS.includes(sender.split('@')[0])) {
-                            return conn.sendMessage(from, { text: config.MSG.notOwner }, { quoted: m });
-                        }
+        const cmdFile = commands.get(command);
+        if (!cmdFile) return;
 
-                        // Ejecutar plugin
-                        await plugin.run({ conn, m, args, from, isGroup, sender, command, config });
-                    }
-                }
-            } catch (err) {
-                console.log("Error en plugin:", err);
+        // === CHEQUEOS ===
+        if (cmdFile.owner && !isOwner)
+            return sock.sendMessage(from, { text: "⚠️ Solo el owner puede usar este comando." }, { quoted: msg });
+
+        if (cmdFile.group && !isGroup)
+            return sock.sendMessage(from, { text: "⚠️ Este comando solo funciona en grupos." }, { quoted: msg });
+
+        if (cmdFile.admin && !isAdmin)
+            return sock.sendMessage(from, { text: "⚠️ Solo admins pueden usar este comando." }, { quoted: msg });
+
+        if (cmdFile.botAdmin && !isBotAdmin)
+            return sock.sendMessage(from, { text: "⚠️ Necesito ser administrador." }, { quoted: msg });
+
+        if (cmdFile.modoadmin) {
+            if (config.modoadmin === true && !isAdmin && !isOwner) {
+                return; // Modo admin activado ⇒ NO responde 
             }
         }
 
+        // === EJECUTAR COMANDO ===
+        await cmdFile.run({
+            sock,
+            msg,
+            args,
+            command,
+            from,
+            isGroup,
+            isAdmin,
+            isBotAdmin,
+            isOwner,
+            metadata,
+            prefix
+        });
+
     } catch (e) {
-        console.log("Error Handler:", e);
+        console.log("ERROR HANDLER:", e);
     }
 }
