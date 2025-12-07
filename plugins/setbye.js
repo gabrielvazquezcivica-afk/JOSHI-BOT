@@ -1,25 +1,40 @@
-const fs = require('fs');
-const path = './config-welcome.json';
+// setbye.js — Cambia la despedida personalizada por grupo
 
-module.exports = {
-    name: "setbye",
-    alias: ["sbye"],
-    desc: "Configurar mensaje de despedida",
-    category: "group",
-    async execute(m, { conn, text, isAdmin }) {
+let handler = async (m, { conn, args, text }) => {
 
-        if (!m.isGroup) return m.reply("Este comando solo funciona en grupos.");
-        if (!isAdmin) return m.reply("Solo administradores pueden usar este comando.");
-        if (!text) return m.reply("Escribe el mensaje de despedida.\nEjemplo:\n.setbye Adiós @user, cuídate!");
+    if (!m.isGroup)
+        return m.reply("❌ Este comando solo funciona en grupos.")
 
-        let config = fs.existsSync(path)
-            ? JSON.parse(fs.readFileSync(path))
-            : { welcome: {}, bye: {} };
+    let chat = global.db.data.chats[m.chat]
+    if (!chat) global.db.data.chats[m.chat] = {}
 
-        config.bye[m.chat] = text;
-
-        fs.writeFileSync(path, JSON.stringify(config, null, 2));
-
-        m.reply("✅ *Mensaje de despedida actualizado para este grupo.*");
+    // Si no escriben texto → mostrar la despedida actual
+    if (!text) {
+        let actual = chat.bye ? chat.bye : "No hay despedida establecida."
+        return m.reply(
+            `👋 *Despedida actual del grupo:*\n\n${actual}\n\n` +
+            `👉 *Usa:* .setbye mensaje`
+        )
     }
-};
+
+    // Guardar nueva despedida
+    chat.bye = text
+
+    await conn.sendMessage(m.chat, {
+        react: { text: "👋", key: m.key }
+    })
+
+    await m.reply(
+        `✅ *Despedida actualizada*\n\n` +
+        `Nuevo mensaje:\n${text}`
+    )
+}
+
+handler.help = ["setbye <texto>"]
+handler.tags = ["group"]
+handler.command = ["setbye"]
+
+handler.group = true
+handler.admin = true
+
+export default handler
