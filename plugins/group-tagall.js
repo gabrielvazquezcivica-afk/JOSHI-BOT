@@ -20,7 +20,7 @@ try {
     try {
         groupImg = await conn.profilePictureUrl(m.chat, "image");
     } catch {
-        groupImg = "https://i.imgur.com/6f0pF0P.jpeg";
+        groupImg = "https://pin.it/12HjutZX0";
     }
 
     // Lista de menciones
