@@ -1,6 +1,7 @@
 // group-promote.js
 
-module.exports = async (m, { conn, isAdmin, isOwner, isBotAdmin, participants }) => {
+default async (m, { conn }) => {
+    try {
 
     if (!m.isGroup)
         return m.reply("❗ Este comando solo funciona en grupos.");
