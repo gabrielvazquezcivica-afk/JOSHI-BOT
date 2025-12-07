@@ -1,68 +1,42 @@
-// ─────────────────────────────────────────────
-// config.js — Configuración global del bot
-// ─────────────────────────────────────────────
-
-// Número del dueño del bot (owner)
-global.owner = ["523310166470"]; 
-// Ejemplo México: 521234567890
-
-// Número oficial donde se conectará el bot
-global.botNumber = "18549995761";
-// Asegúrate que sea el MISMO número con el que escaneas el QR
+// ===============================
+//        CONFIGURACIÓN GLOBAL
+// ===============================
 
 // Nombre del bot
-global.botName = "JOSHI-BOT";
+global.botName = "JOSHI-BOT";           // <=== AQUÍ PONES EL NOMBRE DEL BOT
 
-// APIs disponibles (puedes agregar más)
+// Dueño del bot
+global.owner = ["523310167470"];       // Número del owner
+
+// Número del bot
+global.botNumber = "18549995761";
+
+// Prefijo de comandos
+global.prefix = ".";
+
+// ==== APIS ====
 global.APIs = {
-    ejemplo: "https://api.ejemplo.com",
-    otro: "https://api.otro.com"
+    zenz: 'https://zenzapis.xyz',
+    lol: 'https://api.lolhuman.xyz',
+    neko: 'https://neko-api.com'
 };
 
-// Claves de APIs
+// ==== API KEYS ====
 global.APIKeys = {
-    "https://api.ejemplo.com": "API_KEY_AQUI",
-    "https://api.otro.com": "OTRA_API_KEY"
+    'https://zenzapis.xyz': 'your-api-key-here',
+    'https://api.lolhuman.xyz': 'your-api-key-here',
+    'https://neko-api.com': 'your-api-key-here'
 };
 
-// ─────────────────────────────
-//   MENSAJES DEL BOT
-// ─────────────────────────────
-global.mensajes = {
+// ===============================
+//        AUTO-RELOAD CONFIG
+// ===============================
 
-    // Cuando el bot NO es admin
-    botNoAdmin: "⚠️ *El bot necesita ser administrador* para usar este comando.",
+import fs from "fs";
+let file = new URL(import.meta.url).pathname;
 
-    // Cuando el usuario NO es admin
-    userNoAdmin: "❌ *Este comando solo lo pueden usar los administradores.*",
-
-    // Cuando el comando es solo para el owner
-    soloOwner: "🔐 Este comando solo puede usarlo el *owner del bot*.",
-
-    // Cuando el comando es solo para grupos
-    soloGrupos: "👥 Este comando solo funciona en *grupos*.",
-
-    // Cuando el comando es solo para chats privados
-    soloPrivado: "📩 Este comando solo funciona en *privado*.",
-
-    // Cuando falta un parámetro
-    faltaParametro: "❗ Te faltan parámetros para ejecutar este comando.",
-
-    // Cuando ocurre algún error
-    error: "❗ Ocurrió un error inesperado, inténtalo de nuevo.",
-
-    // Comando deshabilitado
-    deshabilitado: "🚫 Este comando está temporalmente deshabilitado."
-};
-
-// ─────────────────────────────
-// Exportación para usar en otros archivos
-// ─────────────────────────────
-module.exports = {
-    owner: global.owner,
-    botNumber: global.botNumber,
-    botName: global.botName,
-    APIs: global.APIs,
-    APIKeys: global.APIKeys,
-    mensajes: global.mensajes
-};
+fs.watchFile(file, () => {
+    fs.unwatchFile(file);
+    console.log(`\n[ AUTO-RELOAD ] Se actualizó → ${file}`);
+    import(`${import.meta.url}?update=${Date.now()}`);
+});
