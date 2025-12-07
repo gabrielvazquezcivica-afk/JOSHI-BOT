@@ -1,5 +1,5 @@
-const handler = async (m, { conn, participants, usedPrefix, command }) => {
-try {
+default async (m, { conn }) => {
+    try {
     // Reacción al usar el comando
     await conn.sendMessage(m.chat, { react: { text: "👢", key: m.key } });
 
