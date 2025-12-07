@@ -28,17 +28,4 @@ global.APIKeys = {
     'https://neko-api.com': 'your-api-key-here'
 };
 
-// ===============================
-//        AUTO-RELOAD CONFIG
-// ===============================
-
-import fs from "fs";
-let file = new URL(import.meta.url).pathname;
-
-fs.watchFile(file, () => {
-    fs.unwatchFile(file);
-    console.log(`\n[ AUTO-RELOAD ] Se actualizó → ${file}`);
-    import(`${import.meta.url}?update=${Date.now()}`);
-});
-
 export default config;
