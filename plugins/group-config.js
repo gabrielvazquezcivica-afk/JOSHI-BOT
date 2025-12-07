@@ -1,6 +1,7 @@
 // group-config.js
 
-module.exports = async (m, { conn, args, command, isAdmin, isOwner, isBotAdmin }) => {
+default async (m, { conn }) => {
+    try {
 
     if (!m.isGroup)
         return m.reply("❗ Este comando solo funciona en grupos.");
