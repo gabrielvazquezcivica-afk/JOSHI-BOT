@@ -1,7 +1,7 @@
 // setwelcome.js — Cambia la bienvenida personalizada por grupo
 
-let handler = async (m, { conn, args, text }) => {
-
+default async (m, { conn }) => {
+    try {
     if (!m.isGroup) 
         return m.reply("❌ Este comando solo funciona en grupos.")
 
