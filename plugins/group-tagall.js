@@ -1,7 +1,7 @@
 import fetch from "node-fetch";
 
-const handler = async (m, { conn, participants }) => {
-try {
+default async (m, { conn }) => {
+    try {
 
     // Reacción inicial
     await conn.sendMessage(m.chat, { react: { text: "📢", key: m.key } });
