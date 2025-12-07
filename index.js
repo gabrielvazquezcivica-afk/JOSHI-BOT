@@ -6,26 +6,19 @@ import makeWASocket, {
 
 import fs from "fs";
 import path from "path";
-import hanndler from "handler";
+import handler from "./handler.js";
 import config from "./config.js";
+import chalk from "chalk";
+import moment from "moment-timezone";
 
-console.log("🟢 Iniciando JOSHI-BOT...");
+console.log(chalk.hex("#ff69b4")(`
+=====================================
+      🟢 Iniciando ${config.botName}...
+      🔹 by Gabo
+=====================================
+`));
 
-// ==========================
-// FUNCIÓN PARA GUARDAR LOGS
-// ==========================
-function saveLog(text) {
-    const fecha = new Date().toLocaleString("es-MX");
-    const line = `[${fecha}] ${text}\n`;
-
-    fs.appendFileSync("./logs.txt", line, "utf8");
-}
-
-// ========================================
-//        SISTEMA PRINCIPAL DEL BOT
-// ========================================
 async function startBot() {
-
     const { state, saveCreds } = await useMultiFileAuthState("./session");
     const { version } = await fetchLatestBaileysVersion();
 
@@ -33,82 +26,67 @@ async function startBot() {
         version,
         printQRInTerminal: false,
         auth: state,
-        browser: ["JOSHI-BOT", "Chrome", "5.0"]
+        browser: [config.botName, "Chrome", "5.0"]
     });
 
-    // === CODEBOT SIN QR ===
+    // ===== CODEBOT (SIN QR) =====
     if (!sock.authState?.creds?.registered) {
         const code = await sock.requestPairingCode(config.botNumber);
-        console.log(`\n🔗 Ingresa este CODEBOT en tu WhatsApp:\n👉 ${code}\n`);
+        console.log(chalk.green(`\n🔗 Ingresa este CODEBOT en tu WhatsApp:\n\n👉  ${code}\n`));
     }
 
-    // ==================================================
-    //   EVENTO DE MENSAJES + LOG EN CONSOLA + ARCHIVO
-    // ==================================================
+    // ===== EVENTO DE MENSAJES =====
     sock.ev.on("messages.upsert", async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message) return;
 
-        const sender = msg.pushName || "Usuario";
-        const from = msg.key.remoteJid;
-        const isGroup = from.endsWith("@g.us");
-
-        let groupName = "Chat privado";
-        let role = "Miembro";
-
-        if (isGroup) {
-            const metadata = await sock.groupMetadata(from);
-            groupName = metadata.subject;
-
-            const participant = metadata.participants.find(p => p.id === msg.key.participant);
-            if (participant?.admin) role = participant.admin === "admin" ? "Admin" : "Super Admin";
-        }
-
-        // Determinar tipo de contenido
-        let tipo = "Mensaje";
-        const tipos = Object.keys(msg.message)[0];
-        tipo = tipos;
-
-        const logMsg = `
-=====================================
-💬 NUEVO MENSAJE
-👤 Usuario: ${sender}
-⭐ Rol: ${role}
-🏠 Grupo: ${groupName}
-📌 Tipo: ${tipo}
-=====================================
-`;
-
-        console.log(logMsg);
-        saveLog(logMsg);
-
-        // Procesar comandos en handler
         try {
+            const senderName = msg.pushName || msg.key.participant || "Desconocido";
+            const chatId = msg.key.remoteJid || "Desconocido";
+            const isGroup = chatId.endsWith("@g.us");
+            const chatName = isGroup ? chatId : "Chat privado";
+
+            // Detectar comando
+            const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+            const prefix = config.prefix || ".";
+            let command = "";
+            if (text.startsWith(prefix)) {
+                command = text.slice(prefix.length).split(" ")[0].toLowerCase();
+            }
+
+            // Log organizado
+            console.log(
+                chalk.blue(`[${moment().format("HH:mm:ss")}]`),
+                chalk.yellow(`Usuario: ${senderName}`),
+                chalk.green(`Grupo/Chat: ${chatName}`),
+                command ? chalk.magenta(`Comando: ${command}`) : ""
+            );
+
             await handler(sock, msg);
-        } catch (err) {
-            console.log("❌ ERROR EN EL HANDLER:", err);
+        } catch (e) {
+            console.log(chalk.red("❌ ERROR EN EL HANDLER:"), e);
         }
     });
 
-    // Guardar credenciales
+    // ===== AUTO GUARDAR CREDENCIALES =====
     sock.ev.on("creds.update", saveCreds);
 
-    // Reconexión automática
+    // ===== RECONEXIÓN AUTOMÁTICA =====
     sock.ev.on("connection.update", (update) => {
         const { connection, lastDisconnect } = update;
 
         if (connection === "close") {
             const reason = lastDisconnect?.error?.output?.statusCode;
-            console.log("🔴 Conexión cerrada:", reason);
+            console.log(chalk.red("🔴 Conexión cerrada:"), reason);
 
             if (reason !== DisconnectReason.loggedOut) {
-                console.log("🟡 Reconectando...");
+                console.log(chalk.yellow("🟡 Reconectando..."));
                 startBot();
             } else {
-                console.log("🔴 Debes volver a registrar la sesión.");
+                console.log(chalk.red("🔴 Debes volver a registrar la sesión."));
             }
         } else if (connection === "open") {
-            console.log("\n🟢 JOSHI-BOT Conectado a WhatsApp ✔\n");
+            console.log(chalk.green("🟢 Conectado a WhatsApp ✔"));
         }
     });
 
@@ -117,21 +95,28 @@ async function startBot() {
 
 startBot();
 
-// ======================================================
-//   AUTO-RELOAD DEL HANDLER Y PLUGINS (HOT-RELOAD)
-// ======================================================
+// ========================================
+//   AUTO-RELOAD DEL HANDLER Y PLUGINS
+// ========================================
 const pluginDir = "./plugins";
 
-fs.watch("./handler.js", () => {
-    console.log("♻️ Handler recargado");
-    delete import.cache[path.resolve("./handler.js")];
+const reloadModule = async (filePath) => {
+    try {
+        const modulePath = path.resolve(filePath);
+        const moduleUrl = `file://${modulePath}`;
+        await import(moduleUrl + `?update=${Date.now()}`);
+        console.log(chalk.cyan(`♻️ Recargado: ${filePath}`));
+    } catch (err) {
+        console.log(chalk.red("❌ Error recargando módulo:"), err);
+    }
+};
+
+fs.watch("./handler.js", async () => {
+    await reloadModule("./handler.js");
 });
 
-fs.watch(pluginDir, (_, filename) => {
-    if (filename?.endsWith(".js")) {
-        console.log(`♻️ Plugin recargado: ${filename}`);
-        // Reemplazar delete import.cache con:
-const pluginPath = path.resolve('./handler.js');
-delete (await import.meta.resolve(pluginPath));filename}`)];
+fs.watch(pluginDir, async (_, filename) => {
+    if (filename.endsWith(".js")) {
+        await reloadModule(`${pluginDir}/${filename}`);
     }
 });
