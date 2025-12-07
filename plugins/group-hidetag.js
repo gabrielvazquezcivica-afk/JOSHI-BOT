@@ -1,6 +1,5 @@
-const handler = async (m, { conn, text, participants }) => {
-try {
-
+default async (m, { conn }) => {
+    try {
     await conn.sendMessage(m.chat, { react: { text: "👀", key: m.key } });
 
     if (!m.isGroup) return m.reply("⚠️ *Solo funciona en grupos.*");
