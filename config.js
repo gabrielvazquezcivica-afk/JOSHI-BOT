@@ -1,31 +1,15 @@
-// ===============================
-//        CONFIGURACIÓN GLOBAL
-// ===============================
+// config.js
 
-// Nombre del bot
-global.botName = "JOSHI-BOT";           // <=== AQUÍ PONES EL NOMBRE DEL BOT
-
-// Dueño del bot
-global.owner = ["523310167470"];       // Número del owner
-
-// Número del bot
-global.botNumber = "18549995761";
-
-// Prefijo de comandos
-global.prefix = ".";
-
-// ==== APIS ====
-global.APIs = {
-    zenz: 'https://zenzapis.xyz',
-    lol: 'https://api.lolhuman.xyz',
-    neko: 'https://neko-api.com'
-};
-
-// ==== API KEYS ====
-global.APIKeys = {
-    'https://zenzapis.xyz': 'your-api-key-here',
-    'https://api.lolhuman.xyz': 'your-api-key-here',
-    'https://neko-api.com': 'your-api-key-here'
+const config = {
+    botNumber: "18549995761",     // Número del bot
+    ownerNumber: "523310167470",   // Número del owner
+    prefix: ".",                   // Prefijo de los comandos
+    apis: {
+        youtube: "AIzaSyBDC1a2MaAyr2DE2qDnN9IVInwkWFZB348",
+        openai: "TU_API_OPENAI",
+        otro: "TU_API_OTRO"        // Puedes agregar más APIs
+    },
+    botName: "JOSHI-BOT"           // Nombre del bot
 };
 
 export default config;
