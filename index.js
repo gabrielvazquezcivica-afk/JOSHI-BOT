@@ -6,10 +6,11 @@ import makeWASocket, {
 
 import fs from "fs";
 import path from "path";
-import handler from "./handler.js";
-import config from "./config.js";
 import chalk from "chalk";
 import moment from "moment-timezone";
+
+import handler from "./handler.js";
+import config from "./config.js";
 
 console.log(chalk.hex("#ff69b4")(`
 =====================================
@@ -29,7 +30,7 @@ async function startBot() {
         browser: [config.botName, "Chrome", "5.0"]
     });
 
-    // ===== CODEBOT (SIN QR) =====
+    // ===== CODEBOT (sin QR) =====
     if (!sock.authState?.creds?.registered) {
         const code = await sock.requestPairingCode(config.botNumber);
         console.log(chalk.green(`\n🔗 Ingresa este CODEBOT en tu WhatsApp:\n\n👉  ${code}\n`));
@@ -46,7 +47,6 @@ async function startBot() {
             const isGroup = chatId.endsWith("@g.us");
             const chatName = isGroup ? chatId : "Chat privado";
 
-            // Detectar comando
             const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
             const prefix = config.prefix || ".";
             let command = "";
@@ -54,7 +54,6 @@ async function startBot() {
                 command = text.slice(prefix.length).split(" ")[0].toLowerCase();
             }
 
-            // Log organizado
             console.log(
                 chalk.blue(`[${moment().format("HH:mm:ss")}]`),
                 chalk.yellow(`Usuario: ${senderName}`),
@@ -93,30 +92,22 @@ async function startBot() {
     return sock;
 }
 
+// ===== INICIAR BOT =====
 startBot();
 
-// ========================================
-//   AUTO-RELOAD DEL HANDLER Y PLUGINS
-// ========================================
+// ===== AUTO-RELOAD DEL HANDLER =====
 const pluginDir = "./plugins";
-
-const reloadModule = async (filePath) => {
-    try {
-        const modulePath = path.resolve(filePath);
-        const moduleUrl = `file://${modulePath}`;
-        await import(moduleUrl + `?update=${Date.now()}`);
-        console.log(chalk.cyan(`♻️ Recargado: ${filePath}`));
-    } catch (err) {
-        console.log(chalk.red("❌ Error recargando módulo:"), err);
-    }
-};
-
 fs.watch("./handler.js", async () => {
-    await reloadModule("./handler.js");
+    console.log(chalk.cyan("♻️ Handler recargado automáticamente"));
 });
-
 fs.watch(pluginDir, async (_, filename) => {
     if (filename.endsWith(".js")) {
-        await reloadModule(`${pluginDir}/${filename}`);
+        console.log(chalk.cyan(`♻️ Plugin recargado: ${filename}`));
     }
+});
+
+// ===== AUTO-RELOAD DE CONFIG =====
+const configFile = path.resolve("./config.js");
+fs.watch(configFile, async () => {
+    console.log(chalk.cyan("♻️ Config recargado automáticamente"));
 });
