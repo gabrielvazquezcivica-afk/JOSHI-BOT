@@ -14,8 +14,6 @@ global.botNumber = "18549995761";
 // Prefijo de comandos
 global.prefix = ".";
 
-export default config;
-
 // ==== APIS ====
 global.APIs = {
     zenz: 'https://zenzapis.xyz',
@@ -42,3 +40,5 @@ fs.watchFile(file, () => {
     console.log(`\n[ AUTO-RELOAD ] Se actualizó → ${file}`);
     import(`${import.meta.url}?update=${Date.now()}`);
 });
+
+export default config;
