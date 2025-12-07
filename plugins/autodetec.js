@@ -1,62 +1,86 @@
-export default {
-    name: "autodetect",
-    event: async ({ conn, m, config }) => {
-        try {
-            // Solo eventos de grupos
-            if (!m.messageStubType) return;
-            const from = m.key.remoteJid;
-            const actor = m.participant || m.key.participant || "Desconocido";
+// autodetec.js – Detecta eventos del grupo automáticamente
 
-            let text = "";
+let before = async (m, { conn }) => {
+    if (!m.isGroup) return
 
-            switch (m.messageStubType) {
+    let botName = global.db.data.settings[conn.user.jid]?.botName || 'JOSHI-BOT'
 
-                case 20: // Promover admin
-                    text = `⚠️ *Cambio detectado*\n\n👤 Usuario promovido\n👑 *Acción realizada por:* @${actor.split("@")[0]}`;
-                    break;
+    // ——— DETECCIÓN DE EVENTOS DEL GRUPO ——— //
+    if (m.mtype === "groupUpdateMessage") {
+        let up = m.message.groupUpdateMessage
 
-                case 21: // Degradar admin
-                    text = `⚠️ *Cambio detectado*\n\n👤 Usuario degradado\n🔻 *Acción realizada por:* @${actor.split("@")[0]}`;
-                    break;
+        // CAMBIO DE NOMBRE
+        if (up.groupName) {
+            await conn.sendMessage(m.chat, {
+                text: `🔔 *Nuevo nombre del grupo:*\n${up.groupName}`
+            })
+        }
 
-                case 22: // Añadir usuarios
-                    text = `⚠️ *Cambio detectado*\n\n👥 Usuario añadido\n➕ *Acción realizada por:* @${actor.split("@")[0]}`;
-                    break;
+        // CAMBIO DE DESCRIPCIÓN
+        if (up.groupDescription) {
+            await conn.sendMessage(m.chat, {
+                text: `📝 *Se actualizó la descripción del grupo.*`
+            })
+        }
 
-                case 23: // Eliminar usuario
-                    text = `⚠️ *Cambio detectado*\n\n🚫 Usuario eliminado\n❌ *Acción realizada por:* @${actor.split("@")[0]}`;
-                    break;
+        // CAMBIO DE FOTO DEL GRUPO
+        if (up.groupPhoto) {
+            await conn.sendMessage(m.chat, {
+                text: `🖼️ *La foto del grupo fue actualizada.*`
+            })
+        }
 
-                case 25: // Cambiar nombre del grupo
-                    text = `⚠️ *Cambio detectado*\n\n✏️ Se cambió el *nombre del grupo*\n👤 *Acción realizada por:* @${actor.split("@")[0]}`;
-                    break;
-
-                case 26: // Cambiar foto del grupo
-                    text = `⚠️ *Cambio detectado*\n\n🖼️ Se cambió la *foto del grupo*\n👤 *Acción realizada por:* @${actor.split("@")[0]}`;
-                    break;
-
-                case 28: // Cambiar descripción
-                    text = `⚠️ *Cambio detectado*\n\n📄 Se cambió la *descripción del grupo*\n👤 *Acción realizada por:* @${actor.split("@")[0]}`;
-                    break;
-
-                case 29: // Ajuste de configuración "solo admins"
-                    text = `⚠️ *Cambio detectado*\n\n🔐 El grupo ahora es *solo admins*\n⚙️ *Cambiado por:* @${actor.split("@")[0]}`;
-                    break;
-
-                case 30: // Ajuste de configuración "todos pueden mandar mensajes"
-                    text = `⚠️ *Cambio detectado*\n\n🔓 El grupo ahora permite que *todos envíen mensajes*\n⚙️ *Cambiado por:* @${actor.split("@")[0]}`;
-                    break;
-
-                default:
-                    return;
+        // GRUPO CERRADO / ABIERTO
+        if (up.announcement !== undefined) {
+            if (up.announcement) {
+                await conn.sendMessage(m.chat, {
+                    text: `🚫 *El grupo está cerrado. Solo administradores pueden enviar mensajes.*`
+                })
+            } else {
+                await conn.sendMessage(m.chat, {
+                    text: `📣 *El grupo está abierto. Todos pueden enviar mensajes.*`
+                })
             }
+        }
 
-            await conn.sendMessage(from, { 
-                text, 
-                mentions: [actor] 
-            });
-        } catch (e) {
-            console.log("Error autodetect:", e);
+        // SOLO ADMINS PUEDEN EDITAR INFO
+        if (up.restrict !== undefined) {
+            if (up.restrict) {
+                await conn.sendMessage(m.chat, {
+                    text: `🔒 *Solo administradores pueden editar la información del grupo.*`
+                })
+            } else {
+                await conn.sendMessage(m.chat, {
+                    text: `🔓 *Todos pueden editar la información del grupo.*`
+                })
+            }
         }
     }
-                           }
+
+    // ——— NUEVOS ADMINS / QUITAR ADMINS ——— //
+    if (m.mtype === "groupParticipantsUpdate") {
+        let ev = m.message.groupParticipantsUpdate
+        let users = ev.participants
+
+        for (let user of users) {
+
+            // NUEVO ADMIN
+            if (ev.action === "promote") {
+                await conn.sendMessage(m.chat, {
+                    text: `⭐ *Nuevo administrador:* @${user.split("@")[0]}`,
+                    mentions: [user]
+                })
+            }
+
+            // ADMIN REMOVIDO
+            if (ev.action === "demote") {
+                await conn.sendMessage(m.chat, {
+                    text: `⚠️ *Administrador removido:* @${user.split("@")[0]}`,
+                    mentions: [user]
+                })
+            }
+        }
+    }
+}
+
+export { before }
