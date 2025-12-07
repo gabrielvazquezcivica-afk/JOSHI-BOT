@@ -1,6 +1,7 @@
 // owner-join.js — El bot entra al grupo por link y detecta si ya está dentro
 
-let handler = async (m, { conn, text }) => {
+default async (m, { conn }) => {
+    try {
 
     if (!global.owner.includes(m.sender.split("@")[0]))
         return m.reply("❌ Solo el owner puede usar este comando.")
