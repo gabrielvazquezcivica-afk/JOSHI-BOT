@@ -6,9 +6,7 @@ import makeWASocket, {
 
 import fs from "fs";
 import path from "path";
-// Reemplazar delete import.cache con:
-const pluginPath = path.resolve('./handler.js');
-delete (await import.meta.resolve(pluginPath));
+import hanndler from "handler";
 import config from "./config.js";
 
 console.log("🟢 Iniciando JOSHI-BOT...");
@@ -132,6 +130,8 @@ fs.watch("./handler.js", () => {
 fs.watch(pluginDir, (_, filename) => {
     if (filename?.endsWith(".js")) {
         console.log(`♻️ Plugin recargado: ${filename}`);
-        delete import.cache[path.resolve(`${pluginDir}/${filename}`)];
+        // Reemplazar delete import.cache con:
+const pluginPath = path.resolve('./handler.js');
+delete (await import.meta.resolve(pluginPath));filename}`)];
     }
 });
