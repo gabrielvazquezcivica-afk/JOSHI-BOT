@@ -6,7 +6,9 @@ import makeWASocket, {
 
 import fs from "fs";
 import path from "path";
-import handler from "./handler.js";
+// Reemplazar delete import.cache con:
+const pluginPath = path.resolve('./handler.js');
+delete (await import.meta.resolve(pluginPath));
 import config from "./config.js";
 
 console.log("🟢 Iniciando JOSHI-BOT...");
